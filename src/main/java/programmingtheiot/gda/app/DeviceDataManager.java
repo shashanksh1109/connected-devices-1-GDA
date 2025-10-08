@@ -24,6 +24,7 @@ import programmingtheiot.data.ActuatorData;
 import programmingtheiot.data.DataUtil;
 import programmingtheiot.data.SensorData;
 import programmingtheiot.data.SystemPerformanceData;
+import programmingtheiot.data.SystemStateData;
 
 import programmingtheiot.gda.connection.CloudClientConnector;
 import programmingtheiot.gda.connection.CoapServerGateway;
@@ -34,11 +35,16 @@ import programmingtheiot.gda.connection.MqttClientConnector;
 import programmingtheiot.gda.connection.RedisPersistenceAdapter;
 import programmingtheiot.gda.connection.SmtpClientConnector;
 
+import programmingtheiot.gda.system.SystemPerformanceManager;
+
+import redis.clients.jedis.JedisPubSub;
+
 /**
- * Shell representation of class for student implementation.
+ * Main data manager for the Gateway Device Application.
+ * Extends JedisPubSub to handle Redis Pub/Sub messages from CDA.
  *
  */
-public class DeviceDataManager implements IDataMessageListener
+public class DeviceDataManager extends JedisPubSub implements IDataMessageListener
 {
 	// static
 	
@@ -47,11 +53,12 @@ public class DeviceDataManager implements IDataMessageListener
 	
 	// private var's
 	
-	private boolean enableMqttClient = true;
+	private boolean enableMqttClient = false;
 	private boolean enableCoapServer = false;
 	private boolean enableCloudClient = false;
 	private boolean enableSmtpClient = false;
 	private boolean enablePersistenceClient = false;
+	private boolean enableSystemPerf = false;
 	
 	private IActuatorDataListener actuatorDataListener = null;
 	private IPubSubClient mqttClient = null;
@@ -59,12 +66,32 @@ public class DeviceDataManager implements IDataMessageListener
 	private IPersistenceClient persistenceClient = null;
 	private IRequestResponseClient smtpClient = null;
 	private CoapServerGateway coapServer = null;
+	private SystemPerformanceManager sysPerfMgr = null;
+	private RedisPersistenceAdapter redisClient = null;
 	
 	// constructors
 	
 	public DeviceDataManager()
 	{
 		super();
+		
+		ConfigUtil configUtil = ConfigUtil.getInstance();
+		
+		this.enableMqttClient =
+			configUtil.getBoolean(
+				ConfigConst.GATEWAY_DEVICE, ConfigConst.ENABLE_MQTT_CLIENT_KEY);
+		
+		this.enableCoapServer =
+			configUtil.getBoolean(
+				ConfigConst.GATEWAY_DEVICE, ConfigConst.ENABLE_COAP_SERVER_KEY);
+		
+		this.enableCloudClient =
+			configUtil.getBoolean(
+				ConfigConst.GATEWAY_DEVICE, ConfigConst.ENABLE_CLOUD_CLIENT_KEY);
+		
+		this.enablePersistenceClient =
+			configUtil.getBoolean(
+				ConfigConst.GATEWAY_DEVICE, ConfigConst.ENABLE_PERSISTENCE_CLIENT_KEY);
 		
 		initConnections();
 	}
@@ -82,48 +109,263 @@ public class DeviceDataManager implements IDataMessageListener
 	}
 	
 	
-	// public methods
+	// public methods - JedisPubSub callbacks
+	
+	/**
+	 * Called when a message is received on a subscribed channel.
+	 * 
+	 * @param channel The channel name.
+	 * @param message The message content (JSON).
+	 */
+	@Override
+	public void onMessage(String channel, String message)
+	{
+		_Logger.info("Received Redis message on channel '" + channel + "': " + message);
+		
+		try {
+			// Try to parse as SensorData (most common from CDA)
+			if (channel.contains("SensorMsg")) {
+				SensorData data = DataUtil.getInstance().jsonToSensorData(message);
+				if (data != null) {
+					this.handleSensorMessage(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE, data);
+				}
+			}
+			// Try to parse as ActuatorData
+			else if (channel.contains("ActuatorCmd") || channel.contains("ActuatorResponse")) {
+				ActuatorData data = DataUtil.getInstance().jsonToActuatorData(message);
+				if (data != null) {
+					this.handleActuatorCommandResponse(ResourceNameEnum.CDA_ACTUATOR_RESPONSE_RESOURCE, data);
+				}
+			}
+			// Try to parse as SystemPerformanceData
+			else if (channel.contains("SystemPerfMsg")) {
+				SystemPerformanceData data = DataUtil.getInstance().jsonToSystemPerformanceData(message);
+				if (data != null) {
+					this.handleSystemPerformanceMessage(ResourceNameEnum.CDA_SYSTEM_PERF_MSG_RESOURCE, data);
+				}
+			}
+			// Generic message handling
+			else {
+				this.handleIncomingMessage(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE, message);
+			}
+			
+		} catch (Exception e) {
+			_Logger.log(Level.WARNING, "Failed to process Redis message from channel: " + channel, e);
+		}
+	}
+	
+	/**
+	 * Called when subscription is successful.
+	 * 
+	 * @param channel The channel name.
+	 * @param subscribedChannels The number of subscribed channels.
+	 */
+	@Override
+	public void onSubscribe(String channel, int subscribedChannels)
+	{
+		_Logger.info("Successfully subscribed to Redis channel: " + channel + 
+			" (Total subscriptions: " + subscribedChannels + ")");
+	}
+	
+	/**
+	 * Called when unsubscription is successful.
+	 * 
+	 * @param channel The channel name.
+	 * @param subscribedChannels The remaining number of subscribed channels.
+	 */
+	@Override
+	public void onUnsubscribe(String channel, int subscribedChannels)
+	{
+		_Logger.info("Unsubscribed from Redis channel: " + channel + 
+			" (Remaining subscriptions: " + subscribedChannels + ")");
+	}
+	
+	
+	// public methods - IDataMessageListener implementation
 	
 	@Override
 	public boolean handleActuatorCommandResponse(ResourceNameEnum resourceName, ActuatorData data)
 	{
-		return false;
+		if (data != null) {
+			_Logger.info("Handling actuator response: " + data.getName());
+			
+			if (data.hasError()) {
+				_Logger.warning("Error flag set for ActuatorData instance.");
+			}
+			
+			// Store to Redis if persistence client is enabled
+			if (this.enablePersistenceClient && this.redisClient != null) {
+				String topic = resourceName.getResourceName();
+				boolean success = this.redisClient.storeData(topic, 0, data);
+				
+				if (success) {
+					_Logger.info("ActuatorData stored to Redis: " + data.getName());
+				} else {
+					_Logger.warning("Failed to store ActuatorData to Redis.");
+				}
+			}
+			
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	@Override
 	public boolean handleActuatorCommandRequest(ResourceNameEnum resourceName, ActuatorData data)
 	{
-		return false;
+		if (data != null) {
+			_Logger.info("Handling actuator command request: " + data.getName());
+			
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	@Override
 	public boolean handleIncomingMessage(ResourceNameEnum resourceName, String msg)
 	{
-		return false;
+		if (msg != null) {
+			_Logger.info("Handling incoming generic message: " + msg);
+			
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	@Override
 	public boolean handleSensorMessage(ResourceNameEnum resourceName, SensorData data)
 	{
-		return false;
+		if (data != null) {
+			_Logger.info("Handling sensor message from CDA: " + data.getName() + 
+				", Value: " + data.getValue());
+			
+			if (data.hasError()) {
+				_Logger.warning("Error flag set for SensorData instance.");
+			}
+			
+			// Store to Redis if persistence client is enabled
+			if (this.enablePersistenceClient && this.redisClient != null) {
+				String topic = resourceName.getResourceName();
+				boolean success = this.redisClient.storeData(topic, 0, data);
+				
+				if (success) {
+					_Logger.info("SensorData stored to Redis: " + data.getName());
+				} else {
+					_Logger.warning("Failed to store SensorData to Redis.");
+				}
+			}
+			
+			return true;
+		} else {
+			return false;
+		}
 	}
 
 	@Override
 	public boolean handleSystemPerformanceMessage(ResourceNameEnum resourceName, SystemPerformanceData data)
 	{
-		return false;
+		if (data != null) {
+			_Logger.info("Handling system performance message: " + data.getName());
+			
+			if (data.hasError()) {
+				_Logger.warning("Error flag set for SystemPerformanceData instance.");
+			}
+			
+			// Store to Redis if persistence client is enabled
+			if (this.enablePersistenceClient && this.redisClient != null) {
+				String topic = resourceName.getResourceName();
+				boolean success = this.redisClient.storeData(topic, 0, data);
+				
+				if (success) {
+					_Logger.info("SystemPerformanceData stored to Redis: " + data.getName());
+				} else {
+					_Logger.warning("Failed to store SystemPerformanceData to Redis.");
+				}
+			}
+			
+			return true;
+		} else {
+			return false;
+		}
 	}
 	
 	public void setActuatorDataListener(String name, IActuatorDataListener listener)
 	{
+		if (listener != null) {
+			this.actuatorDataListener = listener;
+		}
 	}
 	
 	public void startManager()
 	{
+		_Logger.info("Starting DeviceDataManager...");
+		
+		if (this.sysPerfMgr != null) {
+			this.sysPerfMgr.startManager();
+		}
+		
+		if (this.redisClient != null) {
+			if (this.redisClient.connectClient()) {
+				_Logger.info("Redis persistence client connected successfully.");
+				
+				// Subscribe to CDA sensor messages
+				this.redisClient.subscribeToChannel(this, ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE);
+				_Logger.info("Subscribed to CDA sensor messages via Redis.");
+				
+			} else {
+				_Logger.warning("Failed to connect Redis persistence client.");
+			}
+		}
+		
+		if (this.mqttClient != null) {
+			// TODO: implement this in Lab Module 7
+		}
+		
+		if (this.coapServer != null) {
+			// TODO: implement this in Lab Module 8
+		}
+		
+		if (this.cloudClient != null) {
+			// TODO: implement this in Lab Module 10
+		}
 	}
 	
 	public void stopManager()
 	{
+		_Logger.info("Stopping DeviceDataManager...");
+		
+		if (this.sysPerfMgr != null) {
+			this.sysPerfMgr.stopManager();
+		}
+		
+		// Unsubscribe from Redis channels
+		if (this.isSubscribed()) {
+			this.unsubscribe();
+			_Logger.info("Unsubscribed from Redis channels.");
+		}
+		
+		if (this.redisClient != null) {
+			if (this.redisClient.disconnectClient()) {
+				_Logger.info("Redis persistence client disconnected successfully.");
+			} else {
+				_Logger.warning("Failed to disconnect Redis persistence client.");
+			}
+		}
+		
+		if (this.mqttClient != null) {
+			// TODO: implement this in Lab Module 7
+		}
+		
+		if (this.coapServer != null) {
+			// TODO: implement this in Lab Module 8
+		}
+		
+		if (this.cloudClient != null) {
+			// TODO: implement this in Lab Module 10
+		}
 	}
 
 	
@@ -136,6 +378,75 @@ public class DeviceDataManager implements IDataMessageListener
 	 */
 	private void initConnections()
 	{
+		ConfigUtil configUtil = ConfigUtil.getInstance();
+		
+		this.enableSystemPerf =
+			configUtil.getBoolean(ConfigConst.GATEWAY_DEVICE, ConfigConst.ENABLE_SYSTEM_PERF_KEY);
+		
+		if (this.enableSystemPerf) {
+			this.sysPerfMgr = new SystemPerformanceManager();
+			this.sysPerfMgr.setDataMessageListener(this);
+		}
+		
+		if (this.enableMqttClient) {
+			// TODO: implement this in Lab Module 7
+		}
+		
+		if (this.enableCoapServer) {
+			// TODO: implement this in Lab Module 8
+		}
+		
+		if (this.enableCloudClient) {
+			// TODO: implement this in Lab Module 10
+		}
+		
+		if (this.enablePersistenceClient) {
+			this.redisClient = new RedisPersistenceAdapter();
+			_Logger.info("Redis persistence client created.");
+		}
+	}
+	
+	/**
+	 * Handles incoming data analysis for ActuatorData.
+	 * 
+	 * @param resourceName The resource name.
+	 * @param data The ActuatorData instance.
+	 */
+	private void handleIncomingDataAnalysis(ResourceNameEnum resourceName, ActuatorData data)
+	{
+		_Logger.fine("Analyzing incoming actuator data: " + data.getName());
+		
+		// TODO: Add analysis logic in future exercises
+	}
+	
+	/**
+	 * Handles incoming data analysis for SystemStateData.
+	 * 
+	 * @param resourceName The resource name.
+	 * @param data The SystemStateData instance.
+	 */
+	private void handleIncomingDataAnalysis(ResourceNameEnum resourceName, SystemStateData data)
+	{
+		_Logger.fine("Analyzing incoming system state data: " + data.getName());
+		
+		// TODO: Add analysis logic in future exercises
+	}
+	
+	/**
+	 * Handles upstream transmission of data to cloud services.
+	 * 
+	 * @param resourceName The resource name.
+	 * @param jsonData The JSON data to transmit.
+	 * @param qos The quality of service level.
+	 * @return boolean True if successful, false otherwise.
+	 */
+	private boolean handleUpstreamTransmission(ResourceNameEnum resourceName, String jsonData, int qos)
+	{
+		_Logger.fine("Handling upstream transmission for resource: " + resourceName);
+		
+		// TODO: Implement cloud transmission in Part 03
+		
+		return true;
 	}
 	
 }

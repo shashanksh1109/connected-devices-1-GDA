@@ -41,6 +41,8 @@ public class DataUtil
 	
 	// private var's
 	
+	private Gson gson = null;
+	
 	
 	// constructors
 	
@@ -51,6 +53,8 @@ public class DataUtil
 	private DataUtil()
 	{
 		super();
+		
+		this.gson = new Gson();
 	}
 	
 	
@@ -58,7 +62,13 @@ public class DataUtil
 	
 	public String actuatorDataToJson(ActuatorData actuatorData)
 	{
-		return null;
+		String jsonData = null;
+		
+		if (actuatorData != null) {
+			jsonData = this.gson.toJson(actuatorData);
+		}
+		
+		return jsonData;
 	}
 	
 	public String actuatorDataToTimeAndValueJson(ActuatorData actuatorData)
@@ -68,7 +78,13 @@ public class DataUtil
 	
 	public String sensorDataToJson(SensorData sensorData)
 	{
-		return null;
+		String jsonData = null;
+		
+		if (sensorData != null) {
+			jsonData = this.gson.toJson(sensorData);
+		}
+		
+		return jsonData;
 	}
 	
 	public String sensorDataToTimeAndValueJson(SensorData sensorData)
@@ -78,32 +94,68 @@ public class DataUtil
 	
 	public String systemPerformanceDataToJson(SystemPerformanceData sysPerfData)
 	{
-		return null;
+		String jsonData = null;
+		
+		if (sysPerfData != null) {
+			jsonData = this.gson.toJson(sysPerfData);
+		}
+		
+		return jsonData;
 	}
 	
 	public String systemStateDataToJson(SystemStateData sysStateData)
 	{
-		return null;
+		String jsonData = null;
+		
+		if (sysStateData != null) {
+			jsonData = this.gson.toJson(sysStateData);
+		}
+		
+		return jsonData;
 	}
 	
 	public ActuatorData jsonToActuatorData(String jsonData)
 	{
-		return null;
+		ActuatorData data = null;
+		
+		if (jsonData != null && jsonData.trim().length() > 0) {
+			data = this.gson.fromJson(jsonData, ActuatorData.class);
+		}
+		
+		return data;
 	}
 	
 	public SensorData jsonToSensorData(String jsonData)
 	{
-		return null;
+		SensorData data = null;
+		
+		if (jsonData != null && jsonData.trim().length() > 0) {
+			data = this.gson.fromJson(jsonData, SensorData.class);
+		}
+		
+		return data;
 	}
 	
 	public SystemPerformanceData jsonToSystemPerformanceData(String jsonData)
 	{
-		return null;
+		SystemPerformanceData data = null;
+		
+		if (jsonData != null && jsonData.trim().length() > 0) {
+			data = this.gson.fromJson(jsonData, SystemPerformanceData.class);
+		}
+		
+		return data;
 	}
 	
 	public SystemStateData jsonToSystemStateData(String jsonData)
 	{
-		return null;
+		SystemStateData data = null;
+		
+		if (jsonData != null && jsonData.trim().length() > 0) {
+			data = this.gson.fromJson(jsonData, SystemStateData.class);
+		}
+		
+		return data;
 	}
 	
 }
