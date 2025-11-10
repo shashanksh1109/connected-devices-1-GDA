@@ -211,6 +211,11 @@ public class DeviceDataManager extends JedisPubSub implements IDataMessageListen
 		if (data != null) {
 			_Logger.info("Handling actuator command request: " + data.getName());
 			
+			// Forward to actuator data listener if available
+			if (this.actuatorDataListener != null) {
+				this.actuatorDataListener.onActuatorDataUpdate(data);
+			}
+			
 			return true;
 		} else {
 			return false;
@@ -289,6 +294,8 @@ public class DeviceDataManager extends JedisPubSub implements IDataMessageListen
 	public void setActuatorDataListener(String name, IActuatorDataListener listener)
 	{
 		if (listener != null) {
+			// For now, just ignore 'name' - if you need more than one listener,
+			// you can use 'name' to create a map of listener instances
 			this.actuatorDataListener = listener;
 		}
 	}
@@ -330,7 +337,11 @@ public class DeviceDataManager extends JedisPubSub implements IDataMessageListen
 		}
 		
 		if (this.coapServer != null) {
-			// TODO: implement this in Lab Module 8
+			if (this.coapServer.startServer()) {
+				_Logger.info("CoAP server started.");
+			} else {
+				_Logger.severe("Failed to start CoAP server. Check log file for details.");
+			}
 		}
 		
 		if (this.cloudClient != null) {
@@ -374,7 +385,11 @@ public class DeviceDataManager extends JedisPubSub implements IDataMessageListen
 		}
 		
 		if (this.coapServer != null) {
-			// TODO: implement this in Lab Module 8
+			if (this.coapServer.stopServer()) {
+				_Logger.info("CoAP server stopped.");
+			} else {
+				_Logger.severe("Failed to stop CoAP server. Check log file for details.");
+			}
 		}
 		
 		if (this.cloudClient != null) {
@@ -408,7 +423,8 @@ public class DeviceDataManager extends JedisPubSub implements IDataMessageListen
 		}
 		
 		if (this.enableCoapServer) {
-			// TODO: implement this in Lab Module 8
+			this.coapServer = new CoapServerGateway(this);
+			_Logger.info("CoAP server gateway created.");
 		}
 		
 		if (this.enableCloudClient) {
@@ -429,9 +445,15 @@ public class DeviceDataManager extends JedisPubSub implements IDataMessageListen
 	 */
 	private void handleIncomingDataAnalysis(ResourceNameEnum resourceName, ActuatorData data)
 	{
-		_Logger.fine("Analyzing incoming actuator data: " + data.getName());
+		_Logger.info("Analyzing incoming actuator data: " + data.getName());
 		
-		// TODO: Add analysis logic in future exercises
+		if (data.isResponseFlagEnabled()) {
+			// TODO: implement response handling
+		} else {
+			if (this.actuatorDataListener != null) {
+				this.actuatorDataListener.onActuatorDataUpdate(data);
+			}
+		}
 	}
 	
 	/**
