@@ -20,7 +20,8 @@ import programmingtheiot.data.DataUtil;
  * Observable resource handler for actuator commands from GDA to CDA.
  * Implements CoAP OBSERVE specification to notify CDA of actuation updates.
  */
-public class GetActuatorCommandResourceHandler extends CoapResource implements IActuatorDataListener
+public class GetActuatorCommandResourceHandler extends CoapResource
+	implements IActuatorDataListener
 {
 	// static
 	
@@ -45,8 +46,12 @@ public class GetActuatorCommandResourceHandler extends CoapResource implements I
 		// Set the resource to be observable
 		super.setObservable(true);
 		
-		// Initialize with default ActuatorData
+		// Initialize with test ActuatorData
 		this.actuatorData = new ActuatorData();
+		this.actuatorData.setName("ActuatorCmd");
+		this.actuatorData.setStateData("This is a test.");
+		this.actuatorData.setValue(0.0f);
+		this.actuatorData.setCommand(0);
 		
 		_Logger.info("Resource handler created with name: " + resourceName);
 	}
@@ -94,6 +99,8 @@ public class GetActuatorCommandResourceHandler extends CoapResource implements I
 		// Convert the locally stored ActuatorData to JSON
 		String jsonData = 
 			DataUtil.getInstance().actuatorDataToJson(this.actuatorData);
+		
+		_Logger.info("Sending ActuatorData JSON: " + jsonData);
 		
 		// Send response with JSON content
 		context.respond(ResponseCode.CONTENT, jsonData);

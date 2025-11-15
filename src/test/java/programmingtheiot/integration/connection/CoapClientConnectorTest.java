@@ -9,12 +9,11 @@
 
 package programmingtheiot.integration.connection;
 
-import static org.junit.Assert.*;
-
 import java.util.logging.Logger;
 
 import org.junit.After;
 import org.junit.AfterClass;
+import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.BeforeClass;
 import org.junit.Test;
@@ -24,7 +23,7 @@ import programmingtheiot.common.IDataMessageListener;
 import programmingtheiot.common.ResourceNameEnum;
 import programmingtheiot.data.DataUtil;
 import programmingtheiot.data.SystemStateData;
-import programmingtheiot.gda.connection.*;
+import programmingtheiot.gda.connection.CoapClientConnector;
 
 /**
  * This test case class contains very basic integration tests for
@@ -214,6 +213,26 @@ public class CoapClientConnectorTest
 		// TODO: issue request and validate response
 		
 		assertTrue(this.coapClient.sendDeleteRequest(ResourceNameEnum.GDA_MGMT_STATUS_CMD_RESOURCE, null, false, DEFAULT_TIMEOUT));
+	}
+	
+	/**
+	 * Test OBSERVE functionality
+	 */
+	@Test
+	public void testObserve()
+	{
+		// Start observing a resource
+		assertTrue(this.coapClient.startObserver(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE, null, 60));
+		
+		// Wait for observe updates
+		try {
+			Thread.sleep(30000); // Wait 30 seconds to receive updates
+		} catch (InterruptedException e) {
+			// ignore
+		}
+		
+		// Stop observing
+		assertTrue(this.coapClient.stopObserver(ResourceNameEnum.CDA_SENSOR_MSG_RESOURCE, null, DEFAULT_TIMEOUT));
 	}
 	
 }

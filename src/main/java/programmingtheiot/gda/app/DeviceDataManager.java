@@ -24,6 +24,7 @@ import programmingtheiot.data.DataUtil;
 import programmingtheiot.data.SensorData;
 import programmingtheiot.data.SystemPerformanceData;
 import programmingtheiot.data.SystemStateData;
+import programmingtheiot.gda.connection.CoapClientConnector;
 import programmingtheiot.gda.connection.CoapServerGateway;
 import programmingtheiot.gda.connection.IPersistenceClient;
 import programmingtheiot.gda.connection.IPubSubClient;
@@ -49,6 +50,7 @@ public class DeviceDataManager extends JedisPubSub implements IDataMessageListen
 	
 	private boolean enableMqttClient = false;
 	private boolean enableCoapServer = false;
+	private boolean enableCoapClient = false;
 	private boolean enableCloudClient = false;
 	private boolean enableSmtpClient = false;
 	private boolean enablePersistenceClient = false;
@@ -59,6 +61,7 @@ public class DeviceDataManager extends JedisPubSub implements IDataMessageListen
 	private IPubSubClient cloudClient = null;
 	private IPersistenceClient persistenceClient = null;
 	private IRequestResponseClient smtpClient = null;
+	private IRequestResponseClient coapClient = null;
 	private CoapServerGateway coapServer = null;
 	private SystemPerformanceManager sysPerfMgr = null;
 	private RedisPersistenceAdapter redisClient = null;
@@ -78,6 +81,10 @@ public class DeviceDataManager extends JedisPubSub implements IDataMessageListen
 		this.enableCoapServer =
 			configUtil.getBoolean(
 				ConfigConst.GATEWAY_DEVICE, ConfigConst.ENABLE_COAP_SERVER_KEY);
+		
+		this.enableCoapClient =
+			configUtil.getBoolean(
+				ConfigConst.GATEWAY_DEVICE, ConfigConst.ENABLE_COAP_CLIENT_KEY);
 		
 		this.enableCloudClient =
 			configUtil.getBoolean(
@@ -420,6 +427,12 @@ public class DeviceDataManager extends JedisPubSub implements IDataMessageListen
 		if (this.enableMqttClient) {
 			this.mqttClient = new MqttClientConnector();
 			this.mqttClient.setDataMessageListener(this);
+		}
+		
+		if (this.enableCoapClient) {
+			this.coapClient = new CoapClientConnector();
+			this.coapClient.setDataMessageListener(this);
+			_Logger.info("CoAP client connector created.");
 		}
 		
 		if (this.enableCoapServer) {
