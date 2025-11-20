@@ -9,11 +9,10 @@
 
 package programmingtheiot.integration.connection;
 
-import static org.junit.Assert.*;
-
 import java.util.logging.Logger;
 
 import org.junit.After;
+import static org.junit.Assert.assertTrue;
 import org.junit.Before;
 import org.junit.Test;
 
@@ -81,6 +80,13 @@ public class MqttClientPerformanceTest
 		long startMillis = System.currentTimeMillis();
 		
 		assertTrue(this.mqttClient.connectClient());
+		
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			// ignore
+		}
+		
 		assertTrue(this.mqttClient.disconnectClient());
 		
 		long endMillis = System.currentTimeMillis();
@@ -126,14 +132,19 @@ public class MqttClientPerformanceTest
 	{
 		assertTrue(this.mqttClient.connectClient());
 		
+		try {
+			Thread.sleep(1000);
+		} catch (InterruptedException e) {
+			// ignore
+		}
+		
 		SensorData sensorData = new SensorData();
 		
 		String payload = DataUtil.getInstance().sensorDataToJson(sensorData);
-		int payloadLen = payload.length();
 		
 		long startMillis = System.currentTimeMillis();
 		
-		for (int sequenceNo = 1; sequenceNo <= maxTestRuns; sequenceNo++) {
+		for (int sequenceNo = 0; sequenceNo < maxTestRuns; sequenceNo++) {
 			this.mqttClient.publishMessage(ResourceNameEnum.CDA_MGMT_STATUS_CMD_RESOURCE, payload, qos);
 		}
 		
@@ -142,13 +153,7 @@ public class MqttClientPerformanceTest
 		
 		assertTrue(this.mqttClient.disconnectClient());
 		
-		String msg =
-			String.format(
-				"\\n\\tTesting Publish: QoS = %s | msgs = %s | payload size = %s | start = %s | end = %s | elapsed = %s",
-				qos, maxTestRuns, payloadLen,
-				(float) startMillis / 1000, (float) endMillis / 1000, (float) elapsedMillis / 1000);
-		
-		_Logger.info(msg);
+		_Logger.info("Publish message - QoS " + qos + " [" + maxTestRuns + "]: " + elapsedMillis + " ms");
 	}
 	
 }

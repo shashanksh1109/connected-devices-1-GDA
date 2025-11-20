@@ -21,7 +21,6 @@ import org.eclipse.californium.core.CoapClient;
 import org.eclipse.californium.core.CoapObserveRelation;
 import org.eclipse.californium.core.CoapResponse;
 import org.eclipse.californium.core.WebLink;
-import org.eclipse.californium.core.coap.CoAP.ResponseCode;
 import org.eclipse.californium.core.coap.MediaTypeRegistry;
 import org.eclipse.californium.core.config.CoapConfig;
 import org.eclipse.californium.elements.config.Configuration;
@@ -32,7 +31,6 @@ import programmingtheiot.common.ConfigUtil;
 import programmingtheiot.common.IDataMessageListener;
 import programmingtheiot.common.ResourceNameEnum;
 import programmingtheiot.gda.connection.handlers.SensorDataObserverHandler;
-import programmingtheiot.gda.connection.handlers.SystemPerformanceDataObserverHandler;
 
 /**
  * Shell representation of class for student implementation.
@@ -206,8 +204,8 @@ public class CoapClientConnector implements IRequestResponseClient
 			response = this.clientConn.post(payload, MediaTypeRegistry.TEXT_PLAIN);
 
 			if (response != null) {
-				_Logger.info("Handling POST. Response: " + response.isSuccess() + " - " + response.getOptions() + " - " +
-					response.getCode() + " - " + response.getResponseText());
+				// _Logger.info("Handling POST. Response: " + response.isSuccess() + " - " + response.getOptions() + " - " +
+				// 	response.getCode() + " - " + response.getResponseText());
 				
 				if (this.dataMsgListener != null) {
 					// TODO: implement this
@@ -215,7 +213,7 @@ public class CoapClientConnector implements IRequestResponseClient
 				
 				return true;
 			} else {
-				_Logger.warning("Handling POST. No response received.");
+				// _Logger.warning("Handling POST. No response received.");
 			}
 		} catch (Exception e) {
 			_Logger.log(Level.SEVERE, "Failed to execute POST request", e);
