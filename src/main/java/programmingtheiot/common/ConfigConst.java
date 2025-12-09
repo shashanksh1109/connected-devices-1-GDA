@@ -149,8 +149,10 @@ public class ConfigConst
 	public static final String HUMIDIFIER_ACTUATOR_NAME = "HumidifierActuator";
 	public static final String HVAC_ACTUATOR_NAME       = "HvacActuator";
 
-	// this is included here for testing purposes only
-	public static final String TEMP_SENSOR_NAME = "TempSensor";
+	// sensor names for testing purposes
+	public static final String TEMP_SENSOR_NAME     = "TempSensor";
+	public static final String HUMIDITY_SENSOR_NAME = "HumiditySensor";
+	public static final String PRESSURE_SENSOR_NAME = "PressureSensor";
 	
 	public static final String CPU_UTIL_NAME  = "CpuUtil";
 	public static final String DISK_UTIL_NAME = "DiskUtil";

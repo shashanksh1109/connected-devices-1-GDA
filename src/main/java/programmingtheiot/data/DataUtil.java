@@ -11,11 +11,6 @@
 
 package programmingtheiot.data;
 
-import java.nio.file.FileSystems;
-import java.nio.file.Files;
-import java.nio.file.Path;
-import java.util.List;
-
 import com.google.gson.Gson;
 
 /**
@@ -73,7 +68,14 @@ public class DataUtil
 	
 	public String actuatorDataToTimeAndValueJson(ActuatorData actuatorData)
 	{
-		return null;
+		String jsonData = null;
+		
+		if (actuatorData != null) {
+			TimeAndValuePayloadData tvData = new TimeAndValuePayloadData(actuatorData);
+			jsonData = this.gson.toJson(tvData);
+		}
+		
+		return jsonData;
 	}
 	
 	public String sensorDataToJson(SensorData sensorData)
@@ -89,7 +91,14 @@ public class DataUtil
 	
 	public String sensorDataToTimeAndValueJson(SensorData sensorData)
 	{
-		return null;
+		String jsonData = null;
+		
+		if (sensorData != null) {
+			TimeAndValuePayloadData tvData = new TimeAndValuePayloadData(sensorData);
+			jsonData = this.gson.toJson(tvData);
+		}
+		
+		return jsonData;
 	}
 	
 	public String systemPerformanceDataToJson(SystemPerformanceData sysPerfData)

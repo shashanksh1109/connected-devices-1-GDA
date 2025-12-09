@@ -14,12 +14,12 @@ import programmingtheiot.data.SensorData;
 import programmingtheiot.data.SystemPerformanceData;
 
 /**
- * Interface contract for pub/sub clients.
+ * Interface contract for cloud clients.
  * 
  */
 public interface ICloudClient
 {
-	/***
+	/**
 	 * Connects to the pub/sub broker / server using configuration parameters
 	 * specified by the sub-class.
 	 * 
