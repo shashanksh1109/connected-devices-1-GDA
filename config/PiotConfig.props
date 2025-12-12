@@ -82,16 +82,18 @@ enableCoapServer        = False
 enableCoapClient        = False
 enableCloudClient       = True
 enableSmtpClient        = False
-enablePersistenceClient = True
+enablePersistenceClient = False
 enableSystemPerformance = True
 enableRunForever        = True
 testGdaDataPath         = /tmp/gda-data
 testCdaDataPath         = /tmp/cda-data
 testEmptyApp            = False
 
-# Humidity threshold configuration for GDA actuation events
+# Silkworm environmental control - Humidity thresholds
+# Optimal humidity for silkworms: 75-85%
+# Triggers humidifier/misting system when humidity drops below 75% or exceeds 85%
 handleHumidityChangeOnDevice = True
 humidityMaxTimePastThreshold = 10
-nominalHumiditySetting       = 40.0
-triggerHumidifierFloor       = 30.0
-triggerHumidifierCeiling     = 50.0
+nominalHumiditySetting       = 80.0
+triggerHumidifierFloor       = 75.0
+triggerHumidifierCeiling     = 85.0
